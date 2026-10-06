@@ -1,0 +1,4 @@
+__pycache__/
+*.pyc
+*.onnx
+smoke_annotated.jpg
