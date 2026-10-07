@@ -5,8 +5,8 @@ from __future__ import annotations
 import math
 import config
 
-# Fixed robot grasp-axis reference measured from three 2560x1440 photos.
-# Converted for a 640x480 frame with aspect-preserving scale and 60px top pad.
+# Gripped top-face center measured from the 2026-10-07 photos.
+# Mapping assumes a centered 1920x1440 crop scaled to 640x480; no padding.
 # This remains a pixel-space offset reference, not a millimetre/world map.
 DEFAULT_REFERENCE_X = config.REFERENCE_X
 DEFAULT_REFERENCE_Y = config.REFERENCE_Y

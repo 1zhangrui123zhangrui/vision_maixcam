@@ -1,7 +1,9 @@
 """Deployment settings. Coordinates and tolerances are image pixels."""
 
 WIDTH, HEIGHT = 640, 480
-REFERENCE_X, REFERENCE_Y = 346.0, 169.0
+# 2026-10-07 top-face fit; assumes default centered 16:9 -> 4:3 camera crop.
+# Verify the magenta cross in the live 640x480 stream before robot motion.
+REFERENCE_X, REFERENCE_Y = 359.3, 132.1
 START_MODE = "IDLE"
 UART_ENABLED = True
 UART_DEVICE = "/dev/ttyS0"
