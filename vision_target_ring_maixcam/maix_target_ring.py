@@ -7,7 +7,7 @@ LABELS = ("target_1", "target_2", "target_3")
 
 class TargetRingMaix:
     def __init__(self, model_path=None, confidence=0.45, iou=0.45):
-        self.detector = load_model("model_9621.mud", LABELS, model_path)
+        self.detector = load_model("model_9728.mud", LABELS, model_path)
         self.confidence, self.iou = confidence, iou
 
     def detect(self, frame):
@@ -20,7 +20,7 @@ class TargetRingMaix:
         for obj in objects:
             item = geometry(obj, width, height, self.confidence, len(LABELS))
             if item is not None:
-                item.update(detected=True, label=LABELS[item["class_id"]], target_id=item["class_id"] + 1)
+                item.update(detected=True, label=LABELS[item["class_id"]], target_id=item["class_id"] + 1, center_source="bbox_maix", center_quality=0.0, ring_count=0, center_usable=False)
                 items.append(item)
         flag_ambiguity(items)
         targets = {label: {"detected": False} for label in LABELS}

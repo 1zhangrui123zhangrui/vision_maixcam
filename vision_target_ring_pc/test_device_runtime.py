@@ -210,8 +210,7 @@ class RuntimeTests(unittest.TestCase):
             rt.detect(Frame(), 100)
         result = rt.empty_result("ERROR", 100)
         packet = json.loads(rt.packet(result, 110))
-        self.assertEqual(packet["objects"], [])
-        self.assertEqual(packet["status"], "ERROR")
+        self.assertEqual(packet, {"seq": 0, "items": []})
         self.assertIsNone(rt.recognizer)
         rt.factories["TARGET_RING"] = factory
         self.assertEqual(rt.detect(Frame(), 200)["mode"], "TARGET_RING")
@@ -219,13 +218,15 @@ class RuntimeTests(unittest.TestCase):
     def test_packet_roundtrip_budget_and_sequence(self):
         rt, _ = runtime()
         rt.handle_command("1")
-        result = rt.detect(Frame(), 100)
+        for stamp in (100, 200, 300):
+            result = rt.detect(Frame(), stamp)
         rt.encoder.sequence = 0xFFFFFFFF
         first = json.loads(rt.packet(result, 150))
         second = json.loads(rt.packet(result, 160))
         self.assertEqual((first["seq"], second["seq"]), (0xFFFFFFFF, 0))
-        self.assertEqual(first["age_ms"], 50)
-        self.assertEqual(first["objects"][0][2:6], [320, 220, 0, -20])
+        self.assertEqual(first, {"seq": 0xFFFFFFFF, "items": [[1, 0, -20]]})
+        self.assertEqual(second["items"], [[1, 0, -20]])
+        self.assertEqual(set(first), {"seq", "items"})
         result["materials"] = result["materials"] * config.MAX_OBJECTS
         self.assertLess(len(rt.packet(result, 160)), 1000)
 
@@ -240,8 +241,7 @@ class RuntimeTests(unittest.TestCase):
         rt, _ = runtime()
         result = rt.detect(Frame(), 100)
         packet = json.loads(rt.packet(result, 100 + config.MAX_RESULT_AGE_MS + 1))
-        self.assertEqual(packet["status"], "STALE")
-        self.assertEqual(packet["objects"], [])
+        self.assertEqual(packet["items"], [])
 
     def test_overflow_and_wrong_image_size(self):
         rt, _ = runtime()
@@ -361,8 +361,7 @@ class MainLoopTests(unittest.TestCase):
             main.main()
         packets = [json.loads(line) for line in bytes(serial.written).splitlines()]
         self.assertEqual(len(packets), 1)
-        self.assertEqual(packets[0]["mode"], "2")
-        self.assertEqual(packets[0]["frame_id"], 2)
+        self.assertEqual(packets[0], {"seq": 0, "items": []})
 
 
 if __name__ == "__main__":
