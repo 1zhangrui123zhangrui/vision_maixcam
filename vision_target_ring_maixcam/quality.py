@@ -23,12 +23,10 @@ class Confirmation:
             # the center estimate is still useful, so do not reject it merely
             # because the YOLO box touches an edge.
             reject_edge = item["touches_image_edge"] and result["mode"] != "TARGET_RING"
-            # A detected center is usable after temporal confirmation.  The
+            # A detected center is usable after temporal confirmation. The
             # geometric pass improves the point when available; if the ring
-            # is partially occluded, the YOLO center remains a valid coarse
-            # center and is still allowed to reach the controller.
-            center_bad = False
-            if reject_edge or item["too_small"] or item["ambiguous"] or center_bad:
+            # is partial, the detector center remains a valid fallback.
+            if reject_edge or item["too_small"] or item["ambiguous"]:
                 continue
             key = item["class_id"]
             center = item["center"]
