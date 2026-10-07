@@ -1,4 +1,4 @@
-"""MaixCAM Pro: recognition, reference overlay and UART1 results."""
+"""MaixCAM Pro: recognition, reference overlay and UART0 results."""
 
 import sys
 sys.dont_write_bytecode = True

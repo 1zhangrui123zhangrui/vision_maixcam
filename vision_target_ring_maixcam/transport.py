@@ -44,12 +44,10 @@ class NullTransport:
 class MaixUartTransport:
     def __init__(self, device=config.UART_DEVICE, baudrate=config.UART_BAUDRATE, serial=None):
         if serial is None:
-            from maix import err, pinmap, uart
+            from maix import uart
 
-            if device != "/dev/ttyS1":
-                raise ValueError("this pin mapping is only for UART1")
-            err.check_raise(pinmap.set_pin_function("A19", "UART1_TX"), "Configure UART1 TX")
-            err.check_raise(pinmap.set_pin_function("A18", "UART1_RX"), "Configure UART1 RX")
+            if device != "/dev/ttyS0":
+                raise ValueError("MaixCAM Pro communication uses UART0 (/dev/ttyS0)")
             serial = uart.UART(device, baudrate)
         self.serial = serial
         self.lines = LineBuffer()

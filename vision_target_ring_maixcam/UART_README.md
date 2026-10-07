@@ -2,9 +2,13 @@
 
 ## 串口
 
-- 设备：UART1 `/dev/ttyS1`
+- 设备：UART0 `/dev/ttyS0`
 - 115200 baud，8N1，无流控，3.3 V TTL，共地
-- MaixCAM Pro TX A19 接单片机 RX；RX A18 接单片机 TX
+- MaixCAM Pro TX A16 接单片机 RX；RX A17 接单片机 TX
+- UART0 默认映射 A16/A17，无需额外 pinmap。开机会输出日志，单片机应丢弃启动日志及不符合 JSON 协议的行，只接收有效 `VISION_RESULT` 包；不要将 `serial ready` 当作视觉程序已就绪。
++- 若启用了串口登录终端或其他 maix protocol 应用，需确认其未与本程序同时读写 UART0。打开端口成功不代表没有占用冲突；没有实机信息时不要直接修改 `/boot/uEnv.txt`。
++- A16 同时参与启动模式检测，上电时不能被外部电路拉低，否则可能无法启动。
++- 官方说明：https://wiki.sipeed.com/maixpy/doc/zh/peripheral/uart.html
 - 单片机命令为 `1\n`、`2\n`；视觉结果为单向发送，不要求单片机应答
 
 ## 坐标约定

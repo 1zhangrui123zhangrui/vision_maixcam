@@ -273,6 +273,16 @@ class FakeSerial:
 
 
 class TransportTests(unittest.TestCase):
+    def test_opens_maixcam_uart0_device(self):
+        serial = FakeSerial()
+        opened = []
+        maix_module = types.SimpleNamespace(
+            uart=types.SimpleNamespace(UART=lambda device, baudrate: opened.append((device, baudrate)) or serial))
+        with patch.dict(sys.modules, {"maix": maix_module}):
+            link = MaixUartTransport()
+        self.assertEqual(opened, [("/dev/ttyS0", config.UART_BAUDRATE)])
+        self.assertIs(link.serial, serial)
+
     def test_split_coalesced_and_crlf(self):
         buf = LineBuffer()
         self.assertEqual(buf.feed(b'{"seq":'), [])
@@ -321,6 +331,7 @@ class MainLoopTests(unittest.TestCase):
     def test_command_arriving_during_inference_drops_old_result(self):
         import main
         rt, _ = runtime()
+        rt.handle_command("1")
         frame = Frame()
         cam = types.SimpleNamespace(clear_buff=lambda: None, skip_frames=lambda n: None,
                                     read=lambda **kw: frame, close=lambda: None)
@@ -344,11 +355,14 @@ class MainLoopTests(unittest.TestCase):
             camera=types.SimpleNamespace(Camera=lambda *a, **k: cam), display=None,
             image=types.SimpleNamespace(Format=types.SimpleNamespace(FMT_RGB888=1)))
         with patch.dict(sys.modules, {"maix": module}), patch.object(config, "SHOW_DISPLAY", False), \
+                patch.object(config, "UART_ENABLED", True), \
                 patch.object(main, "MaixUartTransport", return_value=link), \
                 patch.object(main, "VisionRuntime", return_value=rt):
             main.main()
         packets = [json.loads(line) for line in bytes(serial.written).splitlines()]
-        self.assertEqual(len(packets), 0)
+        self.assertEqual(len(packets), 1)
+        self.assertEqual(packets[0]["mode"], "2")
+        self.assertEqual(packets[0]["frame_id"], 2)
 
 
 if __name__ == "__main__":

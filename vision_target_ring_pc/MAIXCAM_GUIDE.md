@@ -17,13 +17,16 @@
 
 数字命令没有命令序号，适合当前联调；JSON 命令的 `seq` 为 uint32，重复/乱序命令会被丢弃。视觉端不返回命令 ACK。
 
-## UART1
+## UART0
 
-- 设备：`/dev/ttyS1`
-- MaixCAM Pro TX：A19，连接单片机 RX
-- MaixCAM Pro RX：A18，连接单片机 TX
+- 设备：`/dev/ttyS0`
+- MaixCAM Pro TX：A16，连接单片机 RX
+- MaixCAM Pro RX：A17，连接单片机 TX
 - 115200 baud，8N1，无流控，3.3 V TTL，共地
-- UART0 是系统日志端口，不使用
+- UART0 默认映射 A16/A17，无需额外 pinmap。开机会输出日志，单片机应丢弃启动日志及不符合 JSON 协议的行，只接收有效 `VISION_RESULT` 包；不要将 `serial ready` 当作视觉程序已就绪。
++- 若启用了串口登录终端或其他 maix protocol 应用，需确认其未与本程序同时读写 UART0。打开端口成功不代表没有占用冲突；没有实机信息时不要直接修改 `/boot/uEnv.txt`。
++- A16 同时参与启动模式检测，上电时不能被外部电路拉低，否则可能无法启动。
++- 官方说明：https://wiki.sipeed.com/maixpy/doc/zh/peripheral/uart.html
 
 ## 视觉结果
 
