@@ -8,21 +8,31 @@ import cv2
 import numpy as np
 
 
-def measure(path, saturation=100):
+PHOTO_SETTINGS = {
+    "3.jpg": ((90, 35, 20), (145, 255, 255), (1080, 150, 1650, 650)),
+    "4.jpg": ((18, 35, 20), (42, 255, 255), (1080, 150, 1650, 650)),
+    "5.jpg": ((0, 25, 20), (179, 255, 255), (1080, 150, 1650, 650)),
+}
+
+
+def measure(path):
     frame = cv2.imdecode(np.fromfile(path, dtype=np.uint8), cv2.IMREAD_COLOR)
     if frame is None or frame.shape[:2] != (1440, 2560):
         raise ValueError("Expected a 2560x1440 calibration photograph")
     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-    mask = cv2.inRange(hsv, (18, saturation, 100), (40, 255, 255))
-    # Photo-specific ROI excludes background objects; it contains the full top.
+    name = Path(path).name
+    lower, upper, (x1, y1, x2, y2) = PHOTO_SETTINGS[name]
+    mask = cv2.inRange(hsv, lower, upper)
     roi = np.zeros(mask.shape, np.uint8)
-    roi[100:850, 1100:1700] = mask[100:850, 1100:1700]
+    roi[y1:y2, x1:x2] = mask[y1:y2, x1:x2]
     contours, _ = cv2.findContours(roi, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
-    points = max(contours, key=cv2.contourArea).reshape(-1, 2)
-    delta = points - np.array([1400, 400])
-    radius = np.linalg.norm(delta, axis=1)
-    # Omit the lower arc where the yellow sidewall joins the yellow top face.
-    points = points[(radius > 170) & (radius < 280) & (delta[:, 1] < radius * 0.65)]
+    candidates = [c for c in contours if cv2.contourArea(c) > 50000]
+    if not candidates:
+        raise ValueError("top-face contour not found in %s" % name)
+    points = max(candidates, key=cv2.contourArea).reshape(-1, 2)
+    # The lower neck is not part of the top face. Keep the upper circular arc.
+    rough = np.mean(points, axis=0)
+    points = points[points[:, 1] < rough[1] + 65]
     ellipse = cv2.fitEllipse(points.astype(np.float32))
     center, axes, angle = ellipse
     theta = np.deg2rad(angle)
@@ -40,14 +50,12 @@ def main():
     output.mkdir(exist_ok=True)
     measurements = []
     previews = []
-    for name in ("0.jpg", "1.jpg", "2.jpg"):
+    for name in ("3.jpg", "4.jpg", "5.jpg"):
         path = root / "picture" / name
         frame, points, ellipse, residual = measure(path)
-        centers = [measure(path, saturation)[2][0] for saturation in (80, 100, 120, 140)]
         row = {"photo": name, "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
                "size": [2560, 1440], "center": list(ellipse[0]),
-               "ellipse_axes": list(ellipse[1]), "arc_fit_rms_px": residual,
-               "threshold_center_span_px": np.ptp(centers, axis=0).tolist()}
+               "ellipse_axes": list(ellipse[1]), "arc_fit_rms_px": residual}
         measurements.append(row)
         cv2.ellipse(frame, ellipse, (0, 0, 255), 3)
         frame[points[:, 1], points[:, 0]] = (0, 255, 0)

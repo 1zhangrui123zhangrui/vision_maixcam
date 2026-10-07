@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 import config
 
-# Gripped top-face center measured from the 2026-10-07 photos.
+# Gripped top-face center measured from photos 3/4/5 on 2026-10-07.
 # Mapping assumes a centered 1920x1440 crop scaled to 640x480; no padding.
 # This remains a pixel-space offset reference, not a millimetre/world map.
 DEFAULT_REFERENCE_X = config.REFERENCE_X
