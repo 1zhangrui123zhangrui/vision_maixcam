@@ -123,9 +123,9 @@ class DetectionTests(unittest.TestCase):
 class QualityTests(unittest.TestCase):
     def test_confirm_then_loss_never_reuses_center(self):
         quality = Confirmation()
-        for frame in range(3):
+        for frame in range(2):
             result = quality.apply(material_result(), frame * 100)
-            self.assertEqual(result["materials"][0]["usable"], frame == 2)
+            self.assertEqual(result["materials"][0]["usable"], frame == 1)
         result = quality.apply(material_result([]), 300)
         self.assertEqual(result["status"], "NO_TARGET")
         self.assertEqual(result["materials"], [])
@@ -133,14 +133,17 @@ class QualityTests(unittest.TestCase):
 
     def test_jump_long_gap_and_slow_drift(self):
         quality = Confirmation()
-        for n in range(3):
+        for n in range(2):
             quality.apply(material_result(), n * 100)
         self.assertFalse(quality.apply(material_result([raw(x=400)]), 300)["materials"][0]["usable"])
         self.assertFalse(quality.apply(material_result([raw(x=400)]), 5000)["materials"][0]["usable"])
         quality.reset()
-        for n in range(6):
+        # Small image motion is accepted; a larger frame-to-frame jump is not.
+        for n in range(2):
             result = quality.apply(material_result([raw(x=300 + n * 4)]), n * 100)
-            self.assertFalse(result["materials"][0]["usable"])
+            self.assertEqual(result["materials"][0]["usable"], n == 1)
+        result = quality.apply(material_result([raw(x=320)]), 300)
+        self.assertFalse(result["materials"][0]["usable"])
 
     def test_bad_candidates_never_confirm(self):
         for objects in [[raw(x=0)], [raw(w=2)], [raw(), raw(x=400)]]:

@@ -1,0 +1,23 @@
+files:
+  - calibration.py
+  - config.py
+  - detection.py
+  - main.py
+  - maix_target_ring.py
+  - material_recognizer.py
+  - model_9657.cvimodel
+  - model_9657.mud
+  - model_9728.cvimodel
+  - model_9728.mud
+  - quality.py
+  - ring_center.py
+  - transport.py
+  - UART_README.md
+  - vision_protocol.py
+  - vision_runtime.py
+id: gc
+name: 工创
+version: 1.0.0
+author: r
+icon: app.png
+desc: 工创智能搬运

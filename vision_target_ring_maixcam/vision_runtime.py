@@ -49,10 +49,15 @@ class VisionRuntime:
         if command["command"] == "SET_REFERENCE":
             self.reference.set(command["x"], command["y"])
         else:
-            self.mode = command["mode"]
+            # Accept both the documented string mode and numeric JSON values
+            # commonly emitted by MCU firmware.
+            self.mode = str(command["mode"])
+            # A mode command is a fresh acquisition request.  Do not retain a
+            # previously loaded detector when the caller explicitly switches
+            # back to that mode.
+            self.recognizer = None
+            self.loaded_model = None
             if self.mode == "IDLE":
-                self.recognizer = None
-                self.loaded_model = None
                 gc.collect()
         if command["seq"] is not None:
             self.last_command_seq = command["seq"]
@@ -96,16 +101,20 @@ class VisionRuntime:
 
         if self.recognizer is not None and result["status"] not in ("ERROR", "IDLE", "OVERFLOW"):
             self.recognizer.draw(frame, result)
-        # White cross: image center. Magenta cross: fixed robot alignment point.
+        # White cross: image center. Material reference is magenta; target-ring
+        # reference is cyan so the two calibration points cannot be confused.
+        reference = (self.reference.to_dict() if self.mode == "1" else
+                     {"x": config.TARGET_REFERENCE_X, "y": config.TARGET_REFERENCE_Y})
+        reference_rgb = (255, 0, 255) if self.mode == "1" else (0, 255, 255)
         for x, y, rgb in ((config.WIDTH // 2, config.HEIGHT // 2, (255, 255, 255)),
-                          (int(self.reference.x), int(self.reference.y), (255, 0, 255))):
+                          (int(reference["x"]), int(reference["y"]), reference_rgb)):
             color = image.Color.from_rgb(*rgb)
             frame.draw_line(max(0, x - 10), y, min(config.WIDTH - 1, x + 10), y, color, thickness=2)
             frame.draw_line(x, max(0, y - 10), x, min(config.HEIGHT - 1, y + 10), color, thickness=2)
         white = image.Color.from_rgb(255, 255, 255)
         frame.draw_string(2, 2, "MODE %s" % self.mode, white, scale=1)
         frame.draw_string(2, 20, "STATUS %s REF(%d,%d)" % (
-            result["status"], self.reference.x, self.reference.y), white, scale=1)
+            result["status"], reference["x"], reference["y"]), white, scale=1)
         return frame
 
     def packet(self, result, now_ms=None):

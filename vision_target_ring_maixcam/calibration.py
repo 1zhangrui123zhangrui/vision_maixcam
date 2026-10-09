@@ -8,8 +8,8 @@ import config
 # Gripped top-face center measured from photos 3/4/5 on 2026-10-07.
 # Mapping assumes a centered 1920x1440 crop scaled to 640x480; no padding.
 # This remains a pixel-space offset reference, not a millimetre/world map.
-DEFAULT_REFERENCE_X = config.REFERENCE_X
-DEFAULT_REFERENCE_Y = config.REFERENCE_Y
+DEFAULT_REFERENCE_X = config.MATERIAL_REFERENCE_X
+DEFAULT_REFERENCE_Y = config.MATERIAL_REFERENCE_Y
 
 
 class PixelReference:
@@ -34,23 +34,27 @@ class PixelReference:
     def add_to_result(self, result):
         """Return a result with reference and per-object pixel offsets."""
         output = dict(result)
-        output["reference"] = self.to_dict()
+        reference = self.to_dict()
+        if result.get("mode") == "TARGET_RING":
+            reference = {"x": round(float(config.TARGET_REFERENCE_X), 2),
+                         "y": round(float(config.TARGET_REFERENCE_Y), 2)}
+        output["reference"] = reference
         output["coordinate_unit"] = "pixel"
         output["offset_convention"] = "center_minus_reference; +x right, +y down"
         if result.get("mode") == "MATERIAL":
-            output["materials"] = [self._with_offset(item) for item in result.get("materials", [])]
+            output["materials"] = [self._with_offset(item, reference) for item in result.get("materials", [])]
         elif result.get("mode") == "TARGET_RING":
             output["targets"] = {
-                label: self._with_offset(item) if item.get("detected") else item
+                label: self._with_offset(item, reference) if item.get("detected") else item
                 for label, item in result.get("targets", {}).items()
             }
         return output
 
-    def _with_offset(self, item):
+    def _with_offset(self, item, reference=None):
         value = dict(item)
         center = value["center"]
         value["offset"] = {
-            "x": round(float(center["x"]) - self.x, 2),
-            "y": round(float(center["y"]) - self.y, 2),
+            "x": round(float(center["x"]) - (self.x if reference is None else reference["x"]), 2),
+            "y": round(float(center["y"]) - (self.y if reference is None else reference["y"]), 2),
         }
         return value

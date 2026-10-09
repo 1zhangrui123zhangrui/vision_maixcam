@@ -19,16 +19,27 @@ class Confirmation:
         current = {}
         for item in items:
             item["confirmed"] = item["usable"] = False
+            item["wait_reason"] = ""
+            is_target = result["mode"] == "TARGET_RING"
             # A target may be partially outside the frame. In target-ring mode
             # the center estimate is still useful, so do not reject it merely
             # because the YOLO box touches an edge.
-            reject_edge = item["touches_image_edge"] and result["mode"] != "TARGET_RING"
+            # A box may touch the border while the material is still almost
+            # fully visible. Reject only genuinely clipped material boxes.
+            reject_edge = (item["touches_image_edge"]
+                           and result["mode"] != "TARGET_RING"
+                           and (config.MATERIAL_REJECT_EDGE or
+                                item.get("visible_ratio", 0.0) < config.MATERIAL_MIN_VISIBLE_RATIO))
             # A detected center is usable after temporal confirmation. The
             # geometric pass improves the point when available; if the ring
             # is partial, the detector center remains a valid fallback.
             if reject_edge or item["too_small"] or item["ambiguous"]:
+                item["wait_reason"] = ("EDGE" if reject_edge else
+                                        "SMALL" if item["too_small"] else "AMB")
                 continue
-            key = item["class_id"]
+            # Geometry and tracking sources may alternate while the same
+            # target is moving. They are one physical track, not two tracks.
+            key = (item["class_id"], None if is_target else item.get("center_source"))
             center = item["center"]
             prior = self.previous.get(key)
             count, anchor = 1, center
@@ -36,16 +47,22 @@ class Confirmation:
                 anchor, old_count, last_center = prior
                 anchor_drift = (center["x"] - anchor["x"]) ** 2 + (center["y"] - anchor["y"]) ** 2
                 frame_drift = (center["x"] - last_center["x"]) ** 2 + (center["y"] - last_center["y"]) ** 2
-                if (anchor_drift <= config.MAX_CENTER_DRIFT ** 2
-                        and frame_drift < (config.MAX_CENTER_DRIFT * 0.5) ** 2):
-                    count = min(config.CONFIRM_FRAMES, old_count + 1)
+                max_step = (config.TARGET_MAX_FRAME_STEP if is_target else
+                            config.MATERIAL_MAX_FRAME_STEP)
+                step_ok = (frame_drift <= max_step ** 2 if is_target
+                           else frame_drift < max_step ** 2)
+                if step_ok and (is_target or anchor_drift <= config.MAX_CENTER_DRIFT ** 2):
+                    needed = config.TARGET_CONFIRM_FRAMES if is_target else config.CONFIRM_FRAMES
+                    count = min(needed, old_count + 1)
                 else:
                     anchor = center
-            # A newly reset track needs one stable frame before it can be
-            # confirmed; a slow drift is accepted only when each frame stays
-            # close to the previous anchor.
+                    item["wait_reason"] = "MOVE"
+            # Rings follow continuous motion; materials retain a fixed anchor.
             current[key] = (anchor, count, center)
-            item["confirmed"] = item["usable"] = count >= config.CONFIRM_FRAMES
+            needed = config.TARGET_CONFIRM_FRAMES if is_target else config.CONFIRM_FRAMES
+            item["confirmed"] = item["usable"] = count >= needed
+            if not item["usable"] and not item["wait_reason"]:
+                item["wait_reason"] = "STABLE %d/%d" % (count, needed)
         self.previous, self.last_ms = current, now_ms
         result["status"] = "OK" if any(i["usable"] for i in items) else ("UNCONFIRMED" if items else "NO_TARGET")
         return result

@@ -106,4 +106,3 @@ def _angular_coverage(x: np.ndarray, y: np.ndarray, bins: int = 24) -> float:
     angles = np.arctan2(y, x)
     occupied = np.unique(np.floor((angles + np.pi) * bins / (2.0 * np.pi)).astype(int) % bins)
     return len(occupied) / bins
-

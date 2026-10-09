@@ -31,10 +31,13 @@ def geometry(obj, width, height, confidence, class_count):
         return None
     if w <= 0 or h <= 0 or not confidence <= score <= 1:
         return None
-    right, bottom = min(width, x + w), min(height, y + h)
+    raw_right, raw_bottom = x + w, y + h
+    right, bottom = min(width, raw_right), min(height, raw_bottom)
     left, top = max(0, x), max(0, y)
     if right <= left or bottom <= top:
         return None
+    visible_area = (right - left) * (bottom - top)
+    visible_ratio = visible_area / max(w * h, 1e-6)
     edge = (x <= config.EDGE_MARGIN or y <= config.EDGE_MARGIN
             or x + w >= width - config.EDGE_MARGIN or y + h >= height - config.EDGE_MARGIN)
     small = min(right - left, bottom - top) < config.MIN_BOX_SIZE
@@ -44,6 +47,7 @@ def geometry(obj, width, height, confidence, class_count):
                  "w": round(right - left, 2), "h": round(bottom - top, 2)},
         "center": {"x": round((left + right) / 2, 2), "y": round((top + bottom) / 2, 2)},
         "center_source": "bbox_estimate", "touches_image_edge": edge,
+        "visible_ratio": round(visible_ratio, 4),
         "too_small": small, "ambiguous": False,
     }
 
@@ -75,8 +79,10 @@ def draw_objects(frame, items):
         label = item.get("color", item.get("label", ""))
         offset = item.get("offset", {"x": 0, "y": 0})
         state = "OK" if item.get("usable") else "WAIT"
-        text = "%s %.2f %s (%d,%d) d(%d,%d)" % (
+        reason = "" if item.get("usable") else "[" + item.get("wait_reason", "") + "]"
+        text = "%s %.2f %s%s (%d,%d) d(%d,%d)" % (
             label, item["confidence"], state,
+            reason,
             int(center["x"]), int(center["y"]),
             int(offset["x"]), int(offset["y"]),
         )
